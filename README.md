@@ -1,4 +1,4 @@
-# Trovia — DevClash 2026
+# Trovia — ByteBattle 2026
 
 > On-chain AI Agent Marketplace built on Solana Devnet, powered by Gemini 2.5 Flash, deployed on Google Cloud Run.
 
@@ -120,6 +120,6 @@ gcloud scheduler jobs create http trovia-scheduling-cron \
 
 ## AI Tools Used
 - Google Gemini 2.5 Flash — content reply, business assistant, trading analysis, farming recommendations, portfolio rebalancing
-- Antigravity (Google DeepMind) — PRD generation and project planning
+- Antigravity (Google DeepMind) — PRD generation and project planning , Github Copilot , Openai Codex
 
-*Built for DevClash 2026 · Trovia Team*
+*Built for ByteBattle 2026 · Team - 7x7=49*
