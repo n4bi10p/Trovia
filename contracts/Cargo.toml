@@ -1,0 +1,10 @@
+[toolchain]
+channel = "stable"
+
+[workspace]
+members = [
+    "programs/agent_registry",
+    "programs/agent_escrow",
+    "programs/agent_executor",
+]
+resolver = "2"
