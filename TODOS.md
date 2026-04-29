@@ -6,6 +6,201 @@
 
 ---
 
+## 🌿 GIT WORKFLOW — Read This First (Everyone)
+
+### Step 0 — One-Time Setup (Do Tonight Before Sleeping)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/n4bi10p/Trovia.git
+cd Trovia
+
+# 2. Create YOUR branch from main (use exactly these names)
+#    Bhumi:
+git checkout -b bhumi/agents origin/main
+git push origin bhumi/agents
+
+#    Aman:
+git checkout -b aman/frontend origin/main
+git push origin aman/frontend
+
+#    Madhura:
+git checkout -b madhura/design origin/main
+git push origin madhura/design
+
+# 3. Confirm you're on your branch (should NOT say "main")
+git branch
+# Should show: * bhumi/agents  (or aman/frontend or madhura/design)
+
+# 4. Set your branch to track remote so push/pull work without flags
+git branch --set-upstream-to=origin/YOUR_BRANCH YOUR_BRANCH
+# Example: git branch --set-upstream-to=origin/bhumi/agents bhumi/agents
+```
+
+---
+
+### Step 1 — Your Daily Work Loop (Repeat All Day)
+
+```bash
+# ── Every time you start working ───────────────────────────────────────────
+git pull origin main --rebase      # Get latest changes from main into your branch
+                                   # DO THIS every time you sit down to work
+
+# ── Work on your files ─────────────────────────────────────────────────────
+# ... edit files ...
+
+# ── Commit every ~1 hour (don't hold big uncommitted changes) ──────────────
+git add .                          # Stage everything you changed
+git status                         # Double-check what you're committing
+git commit -m "feat(section): short description of what you did"
+# Examples:
+#   git commit -m "feat(agents): implement content reply agent"
+#   git commit -m "feat(frontend): marketplace page grid + filter tabs"
+#   git commit -m "fix(agents): handle Gemini JSON parse failure"
+
+# ── Push to YOUR branch (not main) ────────────────────────────────────────
+git push origin YOUR_BRANCH
+# Examples:
+#   git push origin bhumi/agents
+#   git push origin aman/frontend
+#   git push origin madhura/design
+```
+
+---
+
+### Step 2 — How to Avoid Merge Conflicts (THE MOST IMPORTANT RULE)
+
+> **The #1 rule: Only touch files in your section.**
+
+| Who | Files you OWN | Files you NEVER touch |
+|---|---|---|
+| **Nabil** | `contracts/**`, `backend/src/lib/**`, `backend/src/routes/**`, `backend/src/index.ts`, `backend/src/cron/**`, `frontend/lib/wallet.ts`, `frontend/lib/contracts.ts` | frontend pages, agent files, tailwind config |
+| **Bhumi** | `backend/src/agents/**` | lib files, contracts, frontend anything |
+| **Aman** | `frontend/app/**`, `frontend/components/**` (except lib files) | backend anything, contracts, tailwind tokens |
+| **Madhura** | `frontend/tailwind.config.ts`, `frontend/app/globals.css` | backend anything, contracts, page logic |
+
+**If you need something from someone else's file — ask them to add/export it. Don't edit their file yourself.**
+
+---
+
+### Step 3 — Syncing With Main (Pull Before Every Session)
+
+```bash
+# ── Pull latest main into your branch before starting work ─────────────────
+git pull origin main --rebase
+
+# What this does:
+# 1. Fetches latest commits from main (Nabil's deploys, etc.)
+# 2. Replays your commits on top of them — clean linear history
+# 3. No ugly merge commits
+
+# ── If rebase has conflicts (rare if you follow the file ownership rules) ──
+# Git will pause and show which file has conflicts.
+# Open the file, look for <<<<<<< and >>>>>>> markers, fix them manually.
+# Then:
+git add <conflicted-file>
+git rebase --continue
+# If it gets messy and you want to abort:
+git rebase --abort   # Goes back to how it was before the rebase
+```
+
+---
+
+### Step 4 — Merging Your Work Into Main
+
+> **Only merge when your feature is COMPLETE and TESTED. Not before.**
+
+```bash
+# Option A — GitHub PR (recommended for clean history)
+# 1. Push your branch: git push origin YOUR_BRANCH
+# 2. Go to github.com/n4bi10p/Trovia
+# 3. Click "Compare & pull request" for your branch
+# 4. Tag Nabil as reviewer for backend PRs, Aman for frontend PRs
+# 5. Nabil/Aman reviews and clicks Merge
+
+# Option B — Command line (during crunch time)
+git checkout main
+git pull origin main                # Get latest main
+git merge YOUR_BRANCH --no-ff       # Merge your branch (--no-ff keeps branch history)
+git push origin main                # Push merged main
+git checkout YOUR_BRANCH            # Go back to your branch
+```
+
+---
+
+### Step 5 — Commit Message Format
+
+Use this format for every commit so the log is readable:
+
+```
+feat(section): short description
+fix(section): what was broken and how you fixed it
+docs(section): documentation update
+chore(section): dependency update / config change
+
+Examples:
+  feat(agents): implement content reply agent with Gemini
+  feat(frontend): marketplace page with filter tabs
+  feat(contracts): deploy all 3 programs to devnet
+  fix(agents): handle empty Gemini response gracefully
+  fix(frontend): wallet balance NaN when disconnected
+  chore(backend): add @google/generative-ai dependency
+```
+
+---
+
+### Step 6 — When Nabil Deploys Contracts (Critical Sync Point)
+
+When Nabil posts Program IDs in team chat, everyone does this immediately:
+
+```bash
+# 1. Pull latest main (has updated Anchor.toml + IDL files)
+git pull origin main --rebase
+
+# 2. Update YOUR .env file:
+#    Bhumi → backend/.env:
+AGENT_REGISTRY_PROGRAM_ID=<paste ID>
+AGENT_ESCROW_PROGRAM_ID=<paste ID>
+AGENT_EXECUTOR_PROGRAM_ID=<paste ID>
+
+#    Aman → frontend/.env.local:
+NEXT_PUBLIC_AGENT_REGISTRY_PROGRAM_ID=<paste ID>
+NEXT_PUBLIC_AGENT_ESCROW_PROGRAM_ID=<paste ID>
+NEXT_PUBLIC_AGENT_EXECUTOR_PROGRAM_ID=<paste ID>
+
+# NOTE: .env files are in .gitignore — you update them locally, never commit them
+```
+
+---
+
+### Quick Reference Cheat Sheet
+
+```bash
+# Start of every session:
+git pull origin main --rebase
+
+# During work (every ~1 hour):
+git add . && git commit -m "feat(X): description" && git push origin YOUR_BRANCH
+
+# Check what branch you're on:
+git branch
+
+# Check what's changed:
+git status
+git diff
+
+# Undo last commit (keep changes):
+git reset --soft HEAD~1
+
+# Discard all local changes (dangerous):
+git restore .
+
+# See recent commits:
+git log --oneline -10
+```
+
+---
+
 ## 🔴 NABIL — Blockchain + Backend Infrastructure
 
 ### TONIGHT (before hackathon starts)
@@ -536,4 +731,4 @@ If time runs out, ship in this order:
 
 ---
 
-*Trovia · DevClash 2026 · Team: Nabil · Bhumi · Aman · Madhura*
+*Trovia · ByteBattle 2026 · Team 7x7=49: Nabil · Bhumi · Aman · Madhura*
