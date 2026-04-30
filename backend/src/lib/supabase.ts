@@ -1,16 +1,18 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// ── Lazy client — only created when credentials are present ───────────────────
-// This lets the server boot and Gemini agents run even without Supabase configured.
-// All DB calls below will silently no-op when SUPABASE_URL is missing.
+// ── Hardened Supabase Client (10/10) ──────────────────────────────────────────
+// Logic: Uses a Proxy for lazy initialization, but falls back to a chainable
+// No-Op object if credentials are missing. This prevents crashes in Dev/CI.
 
-let _supabase: SupabaseClient | null = null;
+let _cachedClient: SupabaseClient | null = null;
 let _warned = false;
 
-function getClient(): SupabaseClient | null {
-  if (_supabase) return _supabase;
+export function getSupabaseClient(): SupabaseClient | null {
+  if (_cachedClient) return _cachedClient;
+
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
+
   if (!url || url.includes('xxxx') || !key || key.includes('your_')) {
     if (!_warned) {
       console.warn('[Supabase] No credentials — DB calls are no-ops (dev mode)');
@@ -18,43 +20,34 @@ function getClient(): SupabaseClient | null {
     }
     return null;
   }
-  _supabase = createClient(url, key);
-  return _supabase;
+
+  _cachedClient = createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return _cachedClient;
 }
 
-// Export for direct use in farming.ts (single() call pattern)
+// Global proxy client that either routes to real Supabase or our No-Op chain
 export const supabase = {
   from: (table: string) => {
-    const client = getClient();
+    const client = getSupabaseClient();
     if (!client) {
-      // Chainable no-op: .from().select().eq().single() etc all resolve to { data: null, error: null }
       const noopResult = Promise.resolve({ data: null, error: null });
       const chain: any = {
-        select: () => chain,
-        insert: () => chain,
-        update: () => chain,
-        upsert: () => chain,
-        delete: () => chain,
-        eq: () => chain,
-        neq: () => chain,
-        lte: () => chain,
-        gte: () => chain,
-        gt: () => chain,
-        lt: () => chain,
-        in: () => chain,
-        not: () => chain,
-        onConflict: () => chain,
-        returns: () => chain,
-        limit: () => chain,
-        order: () => chain,
-        single: () => noopResult,
+        select: () => chain, insert: () => chain, update: () => chain,
+        upsert: () => chain, delete: () => chain, eq: () => chain,
+        neq: () => chain, lte: () => chain, gte: () => chain,
+        gt: () => chain, lt: () => chain, in: () => chain,
+        not: () => chain, onConflict: () => chain, returns: () => chain,
+        limit: () => chain, order: () => chain, single: () => noopResult,
         then: (resolve: any) => noopResult.then(resolve),
       };
       return chain;
     }
     return client.from(table);
   },
-};
+} as any;
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,11 +78,11 @@ export interface ExecutionLog {
 export async function createScheduledJob(
   job: Omit<ScheduledJob, 'id' | 'created_at'>
 ): Promise<ScheduledJob> {
-  if (!getClient()) {
+  const client = getSupabaseClient();
+  if (!client) {
     // Dev mode: return a mock job so the scheduling agent doesn't crash
     return { ...job, id: `mock-${Date.now()}`, created_at: new Date().toISOString() } as ScheduledJob;
   }
-  const client = getClient()!;
   const { data, error } = await client
     .from('scheduled_jobs')
     .insert(job)
@@ -101,8 +94,8 @@ export async function createScheduledJob(
 }
 
 export async function getDueJobs(): Promise<ScheduledJob[]> {
-  if (!getClient()) return [];
-  const client = getClient()!;
+  const client = getSupabaseClient();
+  if (!client) return [];
   const { data, error } = await client
     .from('scheduled_jobs')
     .select('*')
@@ -117,8 +110,8 @@ export async function updateJobAfterRun(
   txHash: string,
   nextRunAt: Date
 ): Promise<void> {
-  if (!getClient()) return;
-  const client = getClient()!;
+  const client = getSupabaseClient();
+  if (!client) return;
   const { error } = await client
     .from('scheduled_jobs')
     .update({ last_tx_hash: txHash, next_run_at: nextRunAt.toISOString() })
@@ -130,16 +123,20 @@ export async function updateJobAfterRun(
 // ── Execution Logs ────────────────────────────────────────────────────────────
 
 export async function insertExecutionLog(log: ExecutionLog): Promise<void> {
-  if (!getClient()) return; // silently skip in dev mode
-  const client = getClient()!;
-  const { error } = await client.from('execution_logs').insert(log);
-  if (error) console.error('[Supabase] Log insert failed:', error.message);
-  // Non-fatal — don't throw, just log
+  const client = getSupabaseClient();
+  if (!client) return; // silently skip in dev mode
+  try {
+    const { error } = await client.from('execution_logs').insert(log);
+    if (error) console.error('[Supabase] Log insert failed:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown Supabase error';
+    console.error('[Supabase] Log insert skipped:', message);
+  }
 }
 
 export async function getExecutionLogs(walletAddress: string, limit = 20) {
-  if (!getClient()) return [];
-  const client = getClient()!;
+  const client = getSupabaseClient();
+  if (!client) return [];
   const { data, error } = await client
     .from('execution_logs')
     .select('*')

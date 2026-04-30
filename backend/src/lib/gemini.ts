@@ -1,21 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// ── Lazy client — reads GEMINI_API_KEY after dotenv.config() has run ──────────
-// DO NOT initialize at module level: imports run before dotenv.config() in index.ts
-// so process.env.GEMINI_API_KEY would be undefined at startup.
+export const GEMINI_MODEL = 'gemini-1.5-flash';
 
-let _model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+let _cachedModel: any = null;
 
 function getModel() {
-  if (_model) return _model;
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || key.includes('your_')) {
-    throw new Error('GEMINI_API_KEY is not set. Add it to backend/.env and restart the server.');
+  if (_cachedModel) return _cachedModel;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.includes('your_')) {
+    throw new Error('GEMINI_API_KEY env var is not configured');
   }
-  const genAI = new GoogleGenerativeAI(key);
-  _model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  return _model;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  _cachedModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+  return _cachedModel;
 }
+
 
 // ── Core ask function ─────────────────────────────────────────────────────────
 
@@ -36,5 +37,3 @@ export async function askJSON<T>(prompt: string): Promise<T> {
 // ── Agent-specific prompt builders ───────────────────────────────────────────
 // BHUMI: Fill these prompts in your agent files, not here.
 // This file is a clean wrapper. Keep it that way.
-
-export const GEMINI_MODEL = 'gemini-2.5-flash';

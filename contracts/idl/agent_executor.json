@@ -1,0 +1,112 @@
+{
+  "version": "0.1.0",
+  "name": "agent_executor",
+  "instructions": [
+    {
+      "name": "logExecution",
+      "docs": [
+        "Logs an agent execution result on-chain.",
+        "Called by the backend server after each agent execution."
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "agentId",
+          "type": "u64"
+        },
+        {
+          "name": "action",
+          "type": "string"
+        },
+        {
+          "name": "result",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ExecutionLog",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "publicKey"
+          },
+          {
+            "name": "action",
+            "type": "string"
+          },
+          {
+            "name": "result",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "ExecutionLogged",
+      "fields": [
+        {
+          "name": "agentId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "user",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "result",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "timestamp",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ActionTooLong",
+      "msg": "Execution action is too long."
+    },
+    {
+      "code": 6001,
+      "name": "ResultTooLong",
+      "msg": "Execution result is too long."
+    }
+  ]
+}

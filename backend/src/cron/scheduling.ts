@@ -12,6 +12,11 @@ export const cronRoutes = Router();
  * 2. Polling: Uses a timeout-resistant strategy for Solana network confirmation.
  */
 cronRoutes.post('/scheduling', async (req: Request, res: Response) => {
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  if (!process.env.CRON_SECRET) {
+    return res.status(500).json({ error: 'CRON_SECRET env var is not configured' });
+  }
+
   const secret = req.headers['x-cron-secret'];
   if (secret !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -21,9 +26,10 @@ cronRoutes.post('/scheduling', async (req: Request, res: Response) => {
 
   try {
     const dueJobs = await getDueJobs();
-    if (dueJobs.length === 0) return res.json({ message: 'No jobs due' });
+    if (dueJobs.length === 0) return res.json({ message: 'No jobs due', processed: 0, results });
 
     console.log(`[Cron] Processing ${dueJobs.length} due jobs...`);
+
     const schedulerKeypair = getSchedulerKeypair();
 
     // Run jobs in parallel for efficiency

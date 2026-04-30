@@ -1,0 +1,229 @@
+{
+  "version": "0.1.0",
+  "name": "agent_escrow",
+  "instructions": [
+    {
+      "name": "activateAgent",
+      "docs": [
+        "Buyer activates an agent by paying the developer in SOL.",
+        "Creates an Activation PDA as on-chain proof."
+      ],
+      "accounts": [
+        {
+          "name": "activation",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "agent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "buyer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "developer",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "agentRegistryProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "agentId",
+          "type": "u64"
+        },
+        {
+          "name": "userConfig",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "deactivateActivation",
+      "docs": [
+        "Deactivates an agent for a user. Only buyer can call."
+      ],
+      "accounts": [
+        {
+          "name": "activation",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "buyer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "agentId",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Agent",
+      "docs": [
+        "Minimal view of the Agent account from agent_registry program (for price check)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "agentType",
+            "type": "string"
+          },
+          {
+            "name": "priceLamports",
+            "type": "u64"
+          },
+          {
+            "name": "developer",
+            "type": "publicKey"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "configSchema",
+            "type": "string"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Activation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentId",
+            "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "publicKey"
+          },
+          {
+            "name": "config",
+            "type": "string"
+          },
+          {
+            "name": "activatedAt",
+            "type": "i64"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "AgentActivated",
+      "fields": [
+        {
+          "name": "agentId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "buyer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "developer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "priceLamports",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "config",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "timestamp",
+          "type": "i64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Only the buyer can modify this activation."
+    },
+    {
+      "code": 6001,
+      "name": "AgentInactive",
+      "msg": "Agent is not active."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidAgentAccount",
+      "msg": "The provided agent account is not the expected registry PDA."
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAgentOwner",
+      "msg": "The provided agent account is not owned by the registry program."
+    },
+    {
+      "code": 6004,
+      "name": "InvalidDeveloper",
+      "msg": "The provided developer wallet does not match the published agent."
+    },
+    {
+      "code": 6005,
+      "name": "ConfigTooLong",
+      "msg": "Activation config is too long."
+    }
+  ]
+}
