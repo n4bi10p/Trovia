@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trovia API Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d0f14; color: #e2e8f0; min-height: 100vh; }
+
+    header { background: linear-gradient(135deg, #1a1f2e, #12151e); border-bottom: 1px solid #2d3748; padding: 18px 28px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.3rem; font-weight: 700; color: #a78bfa; }
+    header span { font-size: 0.8rem; background: #1e2535; color: #64748b; padding: 3px 10px; border-radius: 99px; border: 1px solid #2d3748; }
+    .base-url { margin-left: auto; font-size: 0.78rem; color: #4ade80; background: #0f2318; padding: 4px 12px; border-radius: 6px; border: 1px solid #166534; }
+
+    .layout { display: grid; grid-template-columns: 260px 1fr; height: calc(100vh - 61px); }
+
+    /* Sidebar */
+    .sidebar { background: #10131a; border-right: 1px solid #1e2535; overflow-y: auto; padding: 12px 0; }
+    .sidebar-group { margin-bottom: 6px; }
+    .sidebar-group-title { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; padding: 8px 18px 4px; }
+    .sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; font-size: 0.83rem; color: #94a3b8; }
+    .sidebar-item:hover { background: #1a1f2e; color: #e2e8f0; }
+    .sidebar-item.active { background: #1a1f2e; border-left-color: #a78bfa; color: #e2e8f0; }
+    .badge { font-size: 0.62rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; }
+    .GET  { background: #0c2e1a; color: #4ade80; }
+    .POST { background: #1e1a0c; color: #fbbf24; }
+    .PATCH{ background: #0c1e2e; color: #60a5fa; }
+
+    /* Main panel */
+    .main { display: flex; flex-direction: column; overflow: hidden; }
+    .request-panel { padding: 24px 28px; border-bottom: 1px solid #1e2535; background: #10131a; }
+    .request-panel h2 { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+    .request-panel p  { font-size: 0.78rem; color: #64748b; margin-bottom: 16px; }
+
+    .url-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .method-tag { font-size: 0.75rem; font-weight: 700; padding: 6px 14px; border-radius: 6px; }
+    .url-display { flex: 1; background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 8px 14px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.82rem; color: #a5b4fc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .body-section { margin-bottom: 14px; }
+    .body-section label { font-size: 0.72rem; font-weight: 600; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+    .body-section textarea { width: 100%; background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px; padding: 10px 14px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.8rem; color: #e2e8f0; resize: vertical; min-height: 80px; outline: none; transition: border-color 0.15s; }
+    .body-section textarea:focus { border-color: #a78bfa; }
+
+    .send-btn { background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; border: none; padding: 10px 28px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; display: flex; align-items: center; gap: 8px; }
+    .send-btn:hover { opacity: 0.85; }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .send-btn .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; display: none; }
+    .send-btn.loading .spinner { display: block; }
+
+    /* Response panel */
+    .response-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 20px 28px; gap: 12px; }
+    .response-meta { display: flex; align-items: center; gap: 14px; }
+    .status-pill { font-size: 0.78rem; font-weight: 700; padding: 3px 12px; border-radius: 99px; }
+    .status-2xx { background: #0c2e1a; color: #4ade80; border: 1px solid #166534; }
+    .status-4xx { background: #2e1a0c; color: #fb923c; border: 1px solid #7c2d12; }
+    .status-5xx { background: #2e0c0c; color: #f87171; border: 1px solid #7f1d1d; }
+    .response-time { font-size: 0.72rem; color: #64748b; }
+    .response-body { flex: 1; overflow-y: auto; background: #1a1f2e; border: 1px solid #2d3748; border-radius: 10px; padding: 16px; }
+    .response-body pre { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.8rem; color: #e2e8f0; white-space: pre-wrap; word-break: break-word; }
+    .placeholder { color: #374151; font-size: 0.85rem; text-align: center; margin-top: 40px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 99px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔮 Trovia API Tester</h1>
+  <span>dev</span>
+  <div class="base-url" id="baseUrlDisplay">http://localhost:8080</div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="request-panel">
+      <h2 id="routeTitle">Select a route</h2>
+      <p id="routeDesc">Choose a route from the left panel to test it.</p>
+      <div class="url-row">
+        <span class="method-tag badge GET" id="methodTag">GET</span>
+        <div class="url-display" id="urlDisplay">—</div>
+      </div>
+      <div class="body-section" id="bodySection" style="display:none">
+        <label>Request Body (JSON)</label>
+        <textarea id="bodyInput" rows="5" placeholder='{ "key": "value" }'></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendRequest()">
+        <div class="spinner"></div>
+        Send Request
+      </button>
+    </div>
+
+    <div class="response-panel">
+      <div class="response-meta" id="responseMeta" style="display:none">
+        <span class="status-pill" id="statusPill"></span>
+        <span class="response-time" id="responseTime"></span>
+      </div>
+      <div class="response-body" id="responseBody">
+        <p class="placeholder">← Select a route and click Send</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'http://localhost:8080';
+
+const ROUTES = [
+  {
+    group: 'Core',
+    items: [
+      { method: 'GET', path: '/api/health', title: 'Health Check', desc: 'Verify the backend is alive and warm.' },
+      { method: 'GET', path: '/api/routes', title: 'List All Routes', desc: 'Returns every registered route in the app.' },
+    ]
+  },
+  {
+    group: 'Agents',
+    items: [
+      { method: 'POST', path: '/api/agents/trading', title: 'Trading Agent', desc: 'Run the trading agent.', body: '{\n  "agentId": "trading-001",\n  "userConfig": {\n    "tokenPair": "SOL/USDC",\n    "thresholdPrice": 150,\n    "action": "buy",\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'POST', path: '/api/agents/farming', title: 'Farming Agent', desc: 'Run the yield farming agent.', body: '{\n  "agentId": "farming-001",\n  "userConfig": {\n    "poolAddress": "POOL_ADDRESS_HERE",\n    "compoundThreshold": 10,\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'POST', path: '/api/agents/scheduling', title: 'Scheduling Agent', desc: 'Run the scheduling agent.', body: '{\n  "agentId": "scheduling-001",\n  "userConfig": {\n    "recipientAddress": "RecipientWallet111111111111111111111111111111",\n    "amountSOL": 0.1,\n    "frequency": "daily",\n    "startDate": "2026-05-01",\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'POST', path: '/api/agents/rebalancing', title: 'Rebalancing Agent', desc: 'Run the rebalancing agent.', body: '{\n  "agentId": "rebalancing-001",\n  "userConfig": {\n    "targetAllocation": { "SOL": 50, "USDC": 50 },\n    "driftTolerance": 5,\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'POST', path: '/api/agents/content', title: 'Content Agent', desc: 'Run the content reply agent.', body: '{\n  "agentId": "content-001",\n  "userConfig": {\n    "message": "What is the best DeFi strategy on Solana?",\n    "tone": "professional",\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'POST', path: '/api/agents/business', title: 'Business Agent', desc: 'Run the business assistant agent.', body: '{\n  "agentId": "business-001",\n  "userConfig": {\n    "businessContext": "Solana DeFi protocol",\n    "query": "Summarize today\'s market trends",\n    "walletAddress": "DemoWallet1111111111111111111111111111111111"\n  }\n}' },
+      { method: 'GET', path: '/api/agents/logs?wallet=DemoWallet1111111111111111111111111111111111', title: 'Execution Logs', desc: 'Fetch execution logs for a wallet.' },
+    ]
+  },
+  {
+    group: 'Feature 1 — Messaging',
+    items: [
+      { method: 'POST', path: '/api/telegram/webhook', title: 'Telegram Webhook', desc: 'Simulates an incoming Telegram /start command.', body: '{\n  "update_id": 123,\n  "message": {\n    "chat": { "id": "987654321" },\n    "from": { "username": "testuser" },\n    "text": "/start"\n  }\n}' },
+      { method: 'POST', path: '/api/whatsapp/webhook', title: 'WhatsApp Webhook', desc: 'Simulates an incoming WhatsApp "hi" message.', body: '{\n  "entry": [{\n    "changes": [{\n      "value": {\n        "messages": [{\n          "from": "919876543210",\n          "text": { "body": "hi" }\n        }]\n      }\n    }]\n  }]\n}' },
+      { method: 'POST', path: '/api/messaging/verify', title: 'Verify Wallet Link', desc: 'Links a wallet to a messaging session (bad token → 401).', body: '{\n  "token": "tg_12345_1234567890",\n  "walletAddress": "DemoWallet1111111111111111111111111111111111",\n  "platform": "telegram",\n  "signature": "fakesig"\n}' },
+      { method: 'GET', path: '/api/messaging/session?wallet=DemoWallet1111111111111111111111111111111111', title: 'Get Messaging Sessions', desc: 'Check if a wallet has linked messaging sessions.' },
+      { method: 'PATCH', path: '/api/messaging/alerts', title: 'Toggle Alerts', desc: 'Enable or disable alert notifications.', body: '{\n  "walletAddress": "DemoWallet1111111111111111111111111111111111",\n  "platform": "telegram",\n  "enabled": false\n}' },
+    ]
+  },
+  {
+    group: 'Feature 2 — Voice',
+    items: [
+      { method: 'POST', path: '/api/voice/transcribe', title: 'Transcribe Audio', desc: 'Gemini STT — sends base64 audio to Gemini 2.5 Flash for transcription (no OpenAI key needed).', body: '{\n  "audio": "SGVsbG8=",\n  "mimeType": "audio/webm"\n}' },
+      { method: 'POST', path: '/api/voice/parse', title: 'Parse Voice Intent', desc: 'Sends transcript to Gemini → returns structured intent JSON.', body: '{\n  "transcript": "launch trading agent with 0.5 SOL"\n}' },
+    ]
+  },
+  {
+    group: 'Feature 3 — Analytics',
+    items: [
+      { method: 'GET', path: '/api/analytics/summary?wallet=DemoWallet1111111111111111111111111111111111', title: 'Portfolio Summary', desc: 'User portfolio: active agents, execution count, recent logs.' },
+      { method: 'GET', path: '/api/analytics/agent/trading-001', title: 'Agent Metrics', desc: 'Per-agent creator view: volume, success rate, ratings.' },
+      { method: 'GET', path: '/api/analytics/protocol', title: 'Protocol Stats', desc: 'Public protocol-wide stats. Cached for 60s (check X-Cache header).' },
+      { method: 'GET', path: '/api/analytics/trending', title: 'Trending Agents', desc: 'Top 5 agents by composite score (volume × rating).' },
+    ]
+  },
+  {
+    group: 'Feature 4 — Reviews',
+    items: [
+      { method: 'GET', path: '/api/reviews/trading-001', title: 'Get Reviews', desc: 'Fetch all reviews + badge summary for an agent.' },
+      { method: 'POST', path: '/api/reviews/trading-001', title: 'Submit Review', desc: 'Submit a new review (eligibility enforced via execution_logs).', body: '{\n  "reviewerWallet": "DemoWallet1111111111111111111111111111111111",\n  "stars": 5,\n  "body": "Great trading agent, very profitable!",\n  "tags": ["Fast", "Profitable"]\n}' },
+      { method: 'POST', path: '/api/reviews/trading-001/report', title: 'Report Agent', desc: 'Flag an agent as malicious (5 reports → auto-flagged).', body: '{\n  "reporterWallet": "DemoWallet1111111111111111111111111111111111",\n  "reason": "Suspicious"\n}' },
+      { method: 'POST', path: '/api/reviews/trading-001/helpful/review-uuid-here', title: 'Helpful Vote', desc: 'Upvote a review as helpful.' },
+      { method: 'GET', path: '/api/reviews/badges/trading-001', title: 'Get Badges', desc: 'Get badge status for an agent (used on marketplace cards).' },
+    ]
+  },
+];
+
+let current = null;
+
+// Build sidebar
+const sidebar = document.getElementById('sidebar');
+ROUTES.forEach(group => {
+  const groupEl = document.createElement('div');
+  groupEl.className = 'sidebar-group';
+  groupEl.innerHTML = `<div class="sidebar-group-title">${group.group}</div>`;
+  group.items.forEach(route => {
+    const item = document.createElement('div');
+    item.className = 'sidebar-item';
+    item.innerHTML = `<span class="badge ${route.method}">${route.method}</span>${route.title}`;
+    item.onclick = () => selectRoute(route, item);
+    groupEl.appendChild(item);
+  });
+  sidebar.appendChild(groupEl);
+});
+
+function selectRoute(route, el) {
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  current = route;
+
+  document.getElementById('routeTitle').textContent = route.title;
+  document.getElementById('routeDesc').textContent = route.desc;
+  document.getElementById('urlDisplay').textContent = BASE + route.path;
+
+  const methodTag = document.getElementById('methodTag');
+  methodTag.textContent = route.method;
+  methodTag.className = `method-tag badge ${route.method}`;
+
+  const bodySection = document.getElementById('bodySection');
+  if (['POST', 'PATCH', 'PUT'].includes(route.method)) {
+    bodySection.style.display = 'block';
+    document.getElementById('bodyInput').value = route.body || '{}';
+  } else {
+    bodySection.style.display = 'none';
+  }
+
+  document.getElementById('responseMeta').style.display = 'none';
+  document.getElementById('responseBody').innerHTML = '<p class="placeholder">Click Send to test this route</p>';
+}
+
+async function sendRequest() {
+  if (!current) return;
+  const btn = document.getElementById('sendBtn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  const start = Date.now();
+  try {
+    const opts = { method: current.method, headers: { 'Content-Type': 'application/json' } };
+    if (['POST', 'PATCH', 'PUT'].includes(current.method)) {
+      try { opts.body = document.getElementById('bodyInput').value; JSON.parse(opts.body); }
+      catch { opts.body = '{}'; }
+    }
+    const res = await fetch(BASE + current.path, opts);
+    const elapsed = Date.now() - start;
+    let text;
+    try { text = JSON.stringify(await res.json(), null, 2); } catch { text = await res.text(); }
+
+    const pill = document.getElementById('statusPill');
+    pill.textContent = res.status + ' ' + res.statusText;
+    pill.className = 'status-pill ' + (res.status < 300 ? 'status-2xx' : res.status < 500 ? 'status-4xx' : 'status-5xx');
+    document.getElementById('responseTime').textContent = elapsed + ' ms';
+    document.getElementById('responseMeta').style.display = 'flex';
+    document.getElementById('responseBody').innerHTML = `<pre>${escapeHtml(text)}</pre>`;
+  } catch (err) {
+    document.getElementById('responseMeta').style.display = 'none';
+    document.getElementById('responseBody').innerHTML = `<pre style="color:#f87171">Network error: ${escapeHtml(err.message)}\n\nMake sure the backend is running on ${BASE}</pre>`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Auto-select first route
+document.querySelector('.sidebar-item')?.click();
+</script>
+</body>
+</html>

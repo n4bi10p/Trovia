@@ -131,9 +131,11 @@ export async function rebalancing(req: Request, res: Response): Promise<void> {
   // If devnet wallet has nothing useful, seed realistic demo values
   const totalUSD = Object.values(portfolioUSD).reduce((a, b) => a + b, 0);
   let currentAllocation: Record<string, number>;
+  let isDemoData = false;
 
   if (totalUSD < 0.001) {
     // Demo/devnet fallback: synthesize a realistic allocation to demonstrate the feature
+    isDemoData = true;
     const demoSOLBalance = 2.5;
     const demoSOLUSD = demoSOLBalance * solPriceUSD;
     const demoUSDCBalance = 80;
@@ -167,6 +169,7 @@ export async function rebalancing(req: Request, res: Response): Promise<void> {
     .join(', ');
 
   const prompt = `You are a Solana DeFi portfolio advisor. A user's portfolio has drifted from their target allocation.
+${isDemoData ? 'NOTE: This is a SIMULATION using demo data because the user wallet is currently empty.' : ''}
 
 Target allocation: ${JSON.stringify(targetAllocation)}
 Current allocation: ${JSON.stringify(currentAllocation)}
@@ -175,9 +178,9 @@ Drift details: ${driftSummary}
 Drift detected: ${driftDetected ? 'Yes' : 'No — within tolerance'}
 
 ${driftDetected
-    ? 'Write a 3-sentence rebalancing recommendation: what to sell, what to buy, and why this matters for portfolio health.'
-    : 'Write 2 sentences confirming the portfolio is balanced and what the user should monitor next.'
-  }
+      ? 'Write a 3-sentence rebalancing recommendation: what to sell, what to buy, and why this matters for portfolio health.'
+      : 'Write 2 sentences confirming the portfolio is balanced and what the user should monitor next.'
+    }
 
 Be specific with token names and percentages. No generic advice. No disclaimers.`;
 
@@ -199,6 +202,11 @@ Be specific with token names and percentages. No generic advice. No disclaimers.
     }
   }
 
+  // Add demo prefix to recommendation if needed
+  if (isDemoData) {
+    recommendation = `[DEMO MODE] ${recommendation}`;
+  }
+
   // 7. Log to Supabase
   await insertExecutionLog({
     agent_id: agentId,
@@ -210,6 +218,7 @@ Be specific with token names and percentages. No generic advice. No disclaimers.
       driftDetected,
       driftTolerance,
       driftDetails,
+      isDemoData,
     },
   });
 
@@ -220,5 +229,6 @@ Be specific with token names and percentages. No generic advice. No disclaimers.
     driftTolerance,
     driftDetails,
     recommendation,
+    isDemoData,
   });
 }

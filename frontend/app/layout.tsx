@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { WalletProvider } from '@/components/WalletProvider';
 import { Nav } from '@/components/Nav';
+import VoicePanel from '@/components/VoicePanel';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <footer className="border-t border-border py-6 text-center text-text-muted text-sm">
             Trovia · Built on Solana Devnet · DevClash 2026
           </footer>
+          <VoicePanel />
         </WalletProvider>
       </body>
     </html>
