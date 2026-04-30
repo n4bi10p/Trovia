@@ -1,12 +1,26 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+// ── Lazy client — reads GEMINI_API_KEY after dotenv.config() has run ──────────
+// DO NOT initialize at module level: imports run before dotenv.config() in index.ts
+// so process.env.GEMINI_API_KEY would be undefined at startup.
+
+let _model: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+
+function getModel() {
+  if (_model) return _model;
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || key.includes('your_')) {
+    throw new Error('GEMINI_API_KEY is not set. Add it to backend/.env and restart the server.');
+  }
+  const genAI = new GoogleGenerativeAI(key);
+  _model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  return _model;
+}
 
 // ── Core ask function ─────────────────────────────────────────────────────────
 
 export async function ask(prompt: string): Promise<string> {
-  const result = await model.generateContent(prompt);
+  const result = await getModel().generateContent(prompt);
   return result.response.text();
 }
 

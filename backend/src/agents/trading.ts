@@ -22,7 +22,7 @@ import { insertExecutionLog } from '../lib/supabase';
  *   thresholdPrice: number,
  *   thresholdHit: boolean,
  *   analysis: string,         // Gemini market analysis (only if threshold hit)
- *   simulatedAction?: string  // What a swap would look like
+ *   simulatedAction?: string  // What a swap would look like (if action === "simulate_swap")
  * }
  */
 export async function trading(req: Request, res: Response): Promise<void> {
@@ -36,31 +36,77 @@ export async function trading(req: Request, res: Response): Promise<void> {
     };
   };
 
-  // TODO (BHUMI): Implement trading agent logic
-  // 1. Fetch current SOL price using getSOLPrice() from lib/solana.ts
-  // 2. Compare to userConfig.thresholdPrice
-  // 3. If threshold hit, call ask() with a market analysis prompt
-  // 4. Call insertExecutionLog() to log the execution to Supabase
-  // 5. Return the result as JSON
+  if (!userConfig?.walletAddress || userConfig?.thresholdPrice === undefined) {
+    res.status(400).json({ error: 'userConfig.walletAddress and userConfig.thresholdPrice are required' });
+    return;
+  }
 
-  // EXAMPLE STRUCTURE (replace with real implementation):
-  const currentPrice = await getSOLPrice();
+  const tokenPair = userConfig.tokenPair || 'SOL/USDC';
+  const action = userConfig.action || 'alert';
+
+  // 1. Fetch current SOL price (cached 60s)
+  let currentPrice: number;
+  try {
+    currentPrice = await getSOLPrice();
+  } catch {
+    currentPrice = 150; // safe fallback for demo if CoinGecko is down
+    console.warn('[Trading Agent] CoinGecko unavailable, using fallback price $150');
+  }
+
   const thresholdHit = currentPrice <= userConfig.thresholdPrice;
 
   let analysis = '';
+  let simulatedAction: string | undefined;
+
   if (thresholdHit) {
-    analysis = await ask(
-      `SOL is currently at $${currentPrice}. The user set a buy alert at $${userConfig.thresholdPrice} for ${userConfig.tokenPair}. ` +
-      `Generate a concise 3-sentence market analysis and recommended action for a crypto trader.`
-    );
+    // 2. Run Gemini analysis when threshold is breached
+    const direction = currentPrice < userConfig.thresholdPrice ? 'below' : 'at';
+    const prompt = `You are a concise crypto trading analyst. SOL/${tokenPair.split('/')[1] ?? 'USDC'} is currently trading at $${currentPrice.toFixed(2)} USD.
+
+The user had set a price alert at $${userConfig.thresholdPrice} USD — the price is now ${direction} that threshold.
+
+Write a 3-sentence market analysis covering:
+1. What the current price level means technically
+2. Potential short-term outlook
+3. A recommended action for a trader at this price level
+
+Be specific, data-driven, and concise. No disclaimers. No generic advice.`;
+
+    try {
+      analysis = await ask(prompt);
+      if (!analysis || analysis.trim().length === 0) {
+        throw new Error('Empty analysis from Gemini');
+      }
+    } catch (err) {
+      console.error('[Trading Agent] Gemini analysis failed:', err instanceof Error ? err.message : err);
+      analysis = `SOL is trading at $${currentPrice.toFixed(2)}, ${direction} your alert threshold of $${userConfig.thresholdPrice}. This price level may represent a key support/resistance zone worth watching. Consider reviewing your position sizing and risk parameters before acting.`;
+    }
+
+    // 3. Simulate swap if requested
+    if (action === 'simulate_swap') {
+      simulatedAction = `[SIMULATED — Devnet] Swap 1 SOL → ${(currentPrice * 0.997).toFixed(2)} USDC at market price $${currentPrice.toFixed(2)} (0.3% DEX fee estimated). No real funds moved.`;
+    }
   }
 
+  // 4. Log to Supabase
   await insertExecutionLog({
     agent_id: agentId,
     buyer_wallet: userConfig.walletAddress,
     action: 'price_check',
-    result: { currentPrice, thresholdHit, tokenPair: userConfig.tokenPair },
+    result: {
+      currentPrice,
+      thresholdPrice: userConfig.thresholdPrice,
+      thresholdHit,
+      tokenPair,
+      action,
+    },
   });
 
-  res.json({ currentPrice, thresholdPrice: userConfig.thresholdPrice, thresholdHit, analysis });
+  res.json({
+    currentPrice,
+    thresholdPrice: userConfig.thresholdPrice,
+    thresholdHit,
+    analysis,
+    ...(simulatedAction ? { simulatedAction } : {}),
+  });
 }

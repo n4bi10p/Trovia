@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { agentRoutes } from './routes/agents';
 import { cronRoutes } from './cron/scheduling';
+import { docsRoutes } from './routes/docs';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.get('/api/health', (_req, res) => {
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/agents', agentRoutes);
 app.use('/api/cron', cronRoutes);
+app.use('/api/docs', docsRoutes);
 
 // ── 404 handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
