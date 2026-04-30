@@ -1,9 +1,35 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY!;
+let cachedClient: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export function getSupabaseClient(): SupabaseClient {
+  if (cachedClient) return cachedClient;
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+
+  if (!supabaseUrl || supabaseUrl.includes('xxxx.supabase.co')) {
+    throw new Error('SUPABASE_URL env var is not configured');
+  }
+  if (!supabaseKey || supabaseKey.includes('your_service_role_key_here')) {
+    throw new Error('SUPABASE_SERVICE_KEY env var is not configured');
+  }
+
+  cachedClient = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+  return cachedClient;
+}
+
+// Compatibility export for older route files. Accessing methods still resolves lazily.
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    return Reflect.get(getSupabaseClient(), prop);
+  },
+});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,7 +60,7 @@ export interface ExecutionLog {
 export async function createScheduledJob(
   job: Omit<ScheduledJob, 'id' | 'created_at'>
 ): Promise<ScheduledJob> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from('scheduled_jobs')
     .insert(job)
     .select()
@@ -45,7 +71,7 @@ export async function createScheduledJob(
 }
 
 export async function getDueJobs(): Promise<ScheduledJob[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from('scheduled_jobs')
     .select('*')
     .lte('next_run_at', new Date().toISOString());
@@ -59,7 +85,7 @@ export async function updateJobAfterRun(
   txHash: string,
   nextRunAt: Date
 ): Promise<void> {
-  const { error } = await supabase
+  const { error } = await getSupabaseClient()
     .from('scheduled_jobs')
     .update({ last_tx_hash: txHash, next_run_at: nextRunAt.toISOString() })
     .eq('id', jobId);
@@ -70,13 +96,18 @@ export async function updateJobAfterRun(
 // ── Execution Logs ────────────────────────────────────────────────────────────
 
 export async function insertExecutionLog(log: ExecutionLog): Promise<void> {
-  const { error } = await supabase.from('execution_logs').insert(log);
-  if (error) console.error('[Supabase] Log insert failed:', error.message);
-  // Non-fatal — don't throw, just log
+  try {
+    const { error } = await getSupabaseClient().from('execution_logs').insert(log);
+    if (error) console.error('[Supabase] Log insert failed:', error.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown Supabase error';
+    console.error('[Supabase] Log insert skipped:', message);
+  }
+  // Non-fatal — don't throw, just log.
 }
 
 export async function getExecutionLogs(walletAddress: string, limit = 20) {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabaseClient()
     .from('execution_logs')
     .select('*')
     .eq('buyer_wallet', walletAddress)

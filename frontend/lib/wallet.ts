@@ -59,6 +59,8 @@ export async function getSOLBalance(pubkeyStr: string): Promise<number> {
 
 export async function signAndSendTransaction(tx: Transaction): Promise<string> {
   if (!window.solana) throw new Error('Wallet not connected');
+  if (window.solana.publicKey) tx.feePayer = window.solana.publicKey;
+  tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
   const { signature } = await window.solana.signAndSendTransaction(tx);
   await connection.confirmTransaction(signature, 'confirmed');
   return signature;

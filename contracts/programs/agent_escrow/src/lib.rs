@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 
-declare_id!("11111111111111111111111111111111"); // Replace after first deploy
+declare_id!("Ep1UKrMfEEfbQHHRwRZHgJfaBoQapqfGqGmLsLa4dCeq"); // Replace after first deploy
+
+const MAX_CONFIG_LEN: usize = 512;
 
 #[program]
 pub mod agent_escrow {
@@ -15,7 +17,21 @@ pub mod agent_escrow {
         user_config: String, // JSON string of buyer's runtime config
     ) -> Result<()> {
         let activation = &mut ctx.accounts.activation;
-        let price_lamports = ctx.accounts.agent.price_lamports;
+        require!(user_config.as_bytes().len() <= MAX_CONFIG_LEN, EscrowError::ConfigTooLong);
+
+        let agent = load_registry_agent(
+            &ctx.accounts.agent,
+            ctx.accounts.agent_registry_program.key(),
+            agent_id,
+        )?;
+        require!(agent.is_active, EscrowError::AgentInactive);
+        require_keys_eq!(
+            ctx.accounts.developer.key(),
+            agent.developer,
+            EscrowError::InvalidDeveloper
+        );
+
+        let price_lamports = agent.price_lamports;
 
         // 1. Transfer SOL from buyer → developer
         let cpi_ctx = CpiContext::new(
@@ -83,6 +99,10 @@ pub struct Activation {
     pub bump: u8,
 }
 
+impl Activation {
+    pub const SPACE: usize = 8 + 8 + 32 + (4 + MAX_CONFIG_LEN) + 8 + 1 + 1;
+}
+
 // ── Contexts ──────────────────────────────────────────────────────────────────
 
 #[derive(Accounts)]
@@ -91,25 +111,20 @@ pub struct ActivateAgent<'info> {
     #[account(
         init,
         payer = buyer,
-        space = 8 + 8 + 32 + 516 + 8 + 1 + 1,
+        space = Activation::SPACE,
         seeds = [b"activation", buyer.key().as_ref(), agent_id.to_le_bytes().as_ref()],
         bump
     )]
     pub activation: Account<'info, Activation>,
 
-    /// CHECK: We only read price_lamports and developer from this account
-    #[account(
-        seeds = [b"agent", agent_id.to_le_bytes().as_ref()],
-        bump,
-        seeds::program = agent_registry_program.key()
-    )]
-    pub agent: Account<'info, Agent>,
+    /// CHECK: Verified manually against the registry program PDA and owner.
+    pub agent: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    /// CHECK: This is the developer wallet that receives payment
-    #[account(mut, address = agent.developer)]
+    /// CHECK: This is manually checked against the deserialized registry agent.
+    #[account(mut)]
     pub developer: UncheckedAccount<'info>,
 
     /// CHECK: The agent_registry program id
@@ -151,4 +166,42 @@ pub enum EscrowError {
     Unauthorized,
     #[msg("Agent is not active.")]
     AgentInactive,
+    #[msg("The provided agent account is not the expected registry PDA.")]
+    InvalidAgentAccount,
+    #[msg("The provided agent account is not owned by the registry program.")]
+    InvalidAgentOwner,
+    #[msg("The provided developer wallet does not match the published agent.")]
+    InvalidDeveloper,
+    #[msg("Activation config is too long.")]
+    ConfigTooLong,
+}
+
+fn load_registry_agent(
+    agent_account: &UncheckedAccount,
+    registry_program_id: Pubkey,
+    agent_id: u64,
+) -> Result<Agent> {
+    let (expected_agent, _) = Pubkey::find_program_address(
+        &[b"agent", agent_id.to_le_bytes().as_ref()],
+        &registry_program_id,
+    );
+
+    require_keys_eq!(
+        agent_account.key(),
+        expected_agent,
+        EscrowError::InvalidAgentAccount
+    );
+    require_keys_eq!(
+        *agent_account.owner,
+        registry_program_id,
+        EscrowError::InvalidAgentOwner
+    );
+
+    let account_info = agent_account.to_account_info();
+    let data = account_info.try_borrow_data()?;
+    let mut data_slice: &[u8] = &data;
+    let agent = Agent::try_deserialize(&mut data_slice)?;
+
+    require!(agent.id == agent_id, EscrowError::InvalidAgentAccount);
+    Ok(agent)
 }

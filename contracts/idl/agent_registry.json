@@ -1,0 +1,237 @@
+{
+  "version": "0.1.0",
+  "name": "agent_registry",
+  "instructions": [
+    {
+      "name": "initializeRegistry",
+      "docs": [
+        "Initializes the singleton registry PDA. Must be called once before publishing."
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "publishAgent",
+      "docs": [
+        "Publishes a new agent to the registry.",
+        "Called by the developer wallet."
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "registry",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "developer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": "PublishAgentArgs"
+          }
+        }
+      ]
+    },
+    {
+      "name": "deactivateAgent",
+      "docs": [
+        "Deactivates an agent. Only the developer can call this."
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "developer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Registry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agentCount",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Agent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "agentType",
+            "type": "string"
+          },
+          {
+            "name": "priceLamports",
+            "type": "u64"
+          },
+          {
+            "name": "developer",
+            "type": "publicKey"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "configSchema",
+            "type": "string"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "PublishAgentArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "name": "agentType",
+            "type": "string"
+          },
+          {
+            "name": "priceLamports",
+            "type": "u64"
+          },
+          {
+            "name": "configSchema",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "AgentPublished",
+      "fields": [
+        {
+          "name": "id",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "index": false
+        },
+        {
+          "name": "developer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "priceLamports",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "You are not the developer of this agent."
+    },
+    {
+      "code": 6001,
+      "name": "NameTooLong",
+      "msg": "Agent name is too long."
+    },
+    {
+      "code": 6002,
+      "name": "DescriptionTooLong",
+      "msg": "Agent description is too long."
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAgentType",
+      "msg": "Agent type is invalid."
+    },
+    {
+      "code": 6004,
+      "name": "ConfigSchemaTooLong",
+      "msg": "Config schema is too long."
+    }
+  ]
+}
