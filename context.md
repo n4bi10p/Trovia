@@ -25,6 +25,22 @@ Trovia is a ByteBattle 2026 Solana Devnet AI agent marketplace. Developers publi
 
 ## Change Log
 - 2026-04-30: Created this context handoff file before implementation.
+- 2026-04-30: anchor build unblocked — created ~/.cargo/bin/cargo-build-bpf wrapper script that strips the "build-bpf" subcommand arg and delegates to cargo-build-sbf (Solana 3.x dropped build-bpf).
+- 2026-04-30: All 3 programs deployed to Solana Devnet:
+  - agent_registry:  DTpcbC6AGTJy1pNEc5LscqZehxEC4BFLVjyuDHfP2G8e | tx: 5Xk5dbEorWN...
+  - agent_escrow:    Ep1UKrMfEEfbQHHRwRZHgJfaBoQapqfGqGmLsLa4dCeq | tx: 595WBTuM8L...
+  - agent_executor:  9MdQSwiyHCCRMSNQeBq2ABttxewTUNmWCXWvDwJF4sD6  | tx: zNnqZ78Dur...
+- 2026-04-30: All 3 IDLs uploaded on-chain via anchor idl init:
+  - agent_registry IDL account:  (tx 3bfyAFwy...)
+  - agent_escrow IDL account:    7XnGGFQceLHTFSancoYXuUngceDZgPLtrdWwW1Bex2Yb
+  - agent_executor IDL account:  coSF6kqD8bGgZADQTj95c7GT21Ncy2EoESqLcswwqSd / 7bB8az8WEbkQDZn7utvUGgYJLK1x74NHZk7cesyUtfYL
+- 2026-04-30: Wallets funded on devnet:
+  - Deploy wallet:    Hx5WixwVS74ci5Q6634aYQY9Cm6SX2b9BF5LxCeGEoQj  (~3.25 SOL remaining)
+  - Scheduler wallet: GAf3kXJqchpaPd8NV2shsWhzHXhALnYCcSDdu6QPcdYs   (2.5 SOL)
+- 2026-04-30: backend npm install + npm run build (tsc) passed clean.
+- 2026-04-30: backend /api/health smoke test → {"status":"ok","service":"trovia-backend","cluster":"devnet"}
+- 2026-04-30: backend /api/agents/trading → routes correctly, fails only on placeholder GEMINI_API_KEY.
+- 2026-04-30: backend /api/agents/scheduling → routes correctly, fails only on placeholder SUPABASE_URL.
 - 2026-04-30: Updated Anchor programs:
   - `agent_registry` now has `initialize_registry`, account size constants, publish validation, and allowed agent type checks.
   - `agent_escrow` now manually verifies registry-owned agent PDAs, checks agent activity/developer, validates config length, and creates activation PDAs after SOL transfer.
@@ -69,7 +85,11 @@ Trovia is a ByteBattle 2026 Solana Devnet AI agent marketplace. Developers publi
 - Supabase runtime verification requires project URL and service role key in backend env.
 
 ## Next Steps
-- In Nabil's local Anchor setup, run `cd contracts && anchor build`; then deploy all three programs to devnet, update `declare_id!`, `contracts/Anchor.toml`, backend/frontend env vars, and generate `contracts/idl/*.json`.
-- Outside this sandbox, run `cd backend && node dist/index.js`, verify `GET /api/health`, then test cron with real `CRON_SECRET`, Supabase env, and `SCHEDULER_KEYPAIR`.
-- After deploy, test frontend with real program IDs: publish an agent, fetch real marketplace agents, activate with Phantom, and verify the tx on Solana Explorer.
-- Ignore the existing untracked `.codex` unless Nabil intentionally wants to commit it.
+- Fill `GEMINI_API_KEY` in `backend/.env` with a real Google AI Studio key → test trading + content agents
+- Create Supabase project → fill `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in `backend/.env` → run the SQL schema from TODOS.md → test scheduling agent
+- Merge `nabil/blockchain` → `main` after Bhumi confirms she can run the backend
+- Share the 3 Program IDs with Aman so he updates `frontend/.env.local` (already pre-filled there)
+- Share the backend Cloud Run URL with Aman once deployed (update `NEXT_PUBLIC_API_URL` in frontend)
+- Deploy backend to Cloud Run: `gcloud run deploy trovia-backend --source backend/ --region asia-south1 --allow-unauthenticated --min-instances 1`
+- Set up Cloud Scheduler cron once backend URL is known (see TODOS.md Step 5)
+
