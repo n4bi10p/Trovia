@@ -20,6 +20,11 @@ export const cronRoutes = Router();
  */
 cronRoutes.post('/scheduling', async (req: Request, res: Response) => {
   // ── Auth ──────────────────────────────────────────────────────────────────
+  if (!process.env.CRON_SECRET) {
+    res.status(500).json({ error: 'CRON_SECRET env var is not configured' });
+    return;
+  }
+
   const secret = req.headers['x-cron-secret'];
   if (secret !== process.env.CRON_SECRET) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -32,6 +37,11 @@ cronRoutes.post('/scheduling', async (req: Request, res: Response) => {
     // ── Fetch due jobs ────────────────────────────────────────────────────
     const dueJobs = await getDueJobs();
     console.log(`[Cron] Processing ${dueJobs.length} due jobs`);
+
+    if (dueJobs.length === 0) {
+      res.json({ processed: 0, results });
+      return;
+    }
 
     const schedulerKeypair = getSchedulerKeypair();
 

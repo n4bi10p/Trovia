@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("11111111111111111111111111111111"); // Replace after first deploy
+declare_id!("9MdQSwiyHCCRMSNQeBq2ABttxewTUNmWCXWvDwJF4sD6"); // Replace after first deploy
 
 #[program]
 pub mod agent_executor {
@@ -14,21 +14,17 @@ pub mod agent_executor {
         action: String,  // e.g. "threshold_alert" | "content_reply" | "payment_sent"
         result: String,  // JSON summary string
     ) -> Result<()> {
-        let log = &mut ctx.accounts.execution_log;
+        require!(action.as_bytes().len() <= 64, ExecutorError::ActionTooLong);
+        require!(result.as_bytes().len() <= 512, ExecutorError::ResultTooLong);
 
-        log.agent_id = agent_id;
-        log.user = ctx.accounts.user.key();
-        log.action = action.clone();
-        log.result = result.clone();
-        log.timestamp = Clock::get()?.unix_timestamp;
-        log.bump = ctx.bumps.execution_log;
+        let timestamp = Clock::get()?.unix_timestamp;
 
         emit!(ExecutionLogged {
             agent_id,
             user: ctx.accounts.user.key(),
             action,
             result,
-            timestamp: log.timestamp,
+            timestamp,
         });
 
         Ok(())
@@ -50,26 +46,8 @@ pub struct ExecutionLog {
 // ── Contexts ──────────────────────────────────────────────────────────────────
 
 #[derive(Accounts)]
-#[instruction(agent_id: u64, action: String)]
 pub struct LogExecution<'info> {
-    #[account(
-        init,
-        payer = user,
-        space = 8 + 8 + 32 + 68 + 516 + 8 + 1,
-        seeds = [
-            b"execution",
-            user.key().as_ref(),
-            agent_id.to_le_bytes().as_ref(),
-            Clock::get().unwrap().unix_timestamp.to_le_bytes().as_ref()
-        ],
-        bump
-    )]
-    pub execution_log: Account<'info, ExecutionLog>,
-
-    #[account(mut)]
     pub user: Signer<'info>,
-
-    pub system_program: Program<'info, System>,
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -81,4 +59,12 @@ pub struct ExecutionLogged {
     pub action: String,
     pub result: String,
     pub timestamp: i64,
+}
+
+#[error_code]
+pub enum ExecutorError {
+    #[msg("Execution action is too long.")]
+    ActionTooLong,
+    #[msg("Execution result is too long.")]
+    ResultTooLong,
 }

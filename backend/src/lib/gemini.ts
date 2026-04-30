@@ -1,12 +1,26 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+export const GEMINI_MODEL = 'gemini-2.5-flash';
+
+let cachedModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+
+function getModel() {
+  if (cachedModel) return cachedModel;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.includes('your_gemini_api_key_here')) {
+    throw new Error('GEMINI_API_KEY env var is not configured');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  cachedModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+  return cachedModel;
+}
 
 // ── Core ask function ─────────────────────────────────────────────────────────
 
 export async function ask(prompt: string): Promise<string> {
-  const result = await model.generateContent(prompt);
+  const result = await getModel().generateContent(prompt);
   return result.response.text();
 }
 
@@ -22,5 +36,3 @@ export async function askJSON<T>(prompt: string): Promise<T> {
 // ── Agent-specific prompt builders ───────────────────────────────────────────
 // BHUMI: Fill these prompts in your agent files, not here.
 // This file is a clean wrapper. Keep it that way.
-
-export const GEMINI_MODEL = 'gemini-2.5-flash';

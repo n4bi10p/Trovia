@@ -1,18 +1,19 @@
+[toolchain]
+
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
 [programs.devnet]
-agent_registry = "11111111111111111111111111111111"
-agent_escrow   = "11111111111111111111111111111111"
-agent_executor = "11111111111111111111111111111111"
-
-[registry]
-url = "https://api.apr.dev"
+agent_escrow = "Ep1UKrMfEEfbQHHRwRZHgJfaBoQapqfGqGmLsLa4dCeq"
+agent_executor = "9MdQSwiyHCCRMSNQeBq2ABttxewTUNmWCXWvDwJF4sD6"
+agent_registry = "DTpcbC6AGTJy1pNEc5LscqZehxEC4BFLVjyuDHfP2G8e"
 
 [provider]
 cluster = "devnet"
-wallet   = "~/.config/solana/devnet-id.json"
+wallet = "~/.config/solana/devnet-id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[hooks]
